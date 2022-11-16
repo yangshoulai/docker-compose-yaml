@@ -1,0 +1,45 @@
+version: "3.9"
+name: nacos-standalone
+services:
+  nacos-mysql:
+    container_name: nacos-mysql
+    build:
+      context: ./image/mysql
+      dockerfile: Dockerfile
+      tags:
+        - "nacos/nacos-mysql:8.0.30"
+    image: nacos/nacos-mysql:8.0.30
+    env_file:
+      - ./env/nacos-mysql.env
+    volumes:
+      - ./volumes/nacos-mysql:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      - nacos-net
+  nacos-server:
+    container_name: nacos-server
+    image: nacos/nacos-server:${VERSION_NACOS}
+    env_file:
+      - ./env/nacos-server.env
+    volumes:
+      - ./volumes/nacos-server/logs:/home/nacos/logs
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "9555:9555"
+    depends_on:
+      nacos-mysql:
+        condition: service_healthy
+    restart: always
+    networks:
+      - nacos-net
+networks:
+  nacos-net:
+    name: nacos-net
+    driver: bridge
