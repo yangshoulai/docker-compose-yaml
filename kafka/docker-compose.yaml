@@ -1,0 +1,49 @@
+version: "3.9"
+name: kafka
+services:
+  zookeeper: 
+    container_name: zookeeper
+    image: zookeeper:${VERSION_ZOOKEEPER}
+    env_file:
+      - ./env/zookeeper.env
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka-net
+    volumes:
+      - ./volumes/zookeeper/data:/data
+      - ./volumes/zookeeper/datalog:/datalog
+      - ./volumes/zookeeper/logs:/logs
+  
+  kafka:
+    container_name: kafka
+    image: bitnami/kafka:${VERSION_KAFKA}
+    env_file:
+      - ./env/kafka.env
+    ports:
+      - "9092:9092"
+      - "9999:9999"
+    networks:
+      - kafka-net
+    volumes:
+      - ./volumes/kafka/data:/bitnami/kafka
+    depends_on:
+      - zookeeper
+
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui:${VERSION_KAFKA_UI}
+    env_file:
+      - ./env/kafka-ui.env
+    ports:
+      - "8080:8080"
+    networks:
+      - kafka-net
+    depends_on:
+      - kafka
+      - zookeeper
+
+networks:
+  kafka-net:
+    name: kafka-net
+    driver: bridge
