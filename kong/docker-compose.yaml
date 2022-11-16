@@ -1,0 +1,66 @@
+version: '3.9'
+services:
+  kong-database:
+    container_name: kong-database
+    image: postgres:${VERSION_POSTGRES}
+    networks:
+      - kong-net
+    ports:
+      - "5432:5432"
+    env_file:
+      - ./env/kong-database.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  kong-migration:
+    image: kong:${VERSION_KONG}
+    container_name: kong-migration
+    networks:
+      - kong-net
+    depends_on:
+      kong-database:
+        condition: service_healthy
+    env_file:
+      - ./env/kong.env
+    command: kong migrations bootstrap
+  kong:
+    container_name: kong
+    image: kong:${VERSION_KONG}
+    networks:
+      - kong-net
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8443:8443"
+      - "8444:8444"
+    env_file:
+      - ./env/kong.env
+    depends_on:
+      kong-database:
+        condition: service_healthy
+      kong-migration:
+        condition: service_completed_successfully
+  konga:
+    container_name: konga
+    image: pantsel/konga:${VERSION_KONGA}
+    networks:
+      - kong-net
+    ports:
+      - "1337:1337"
+    env_file:
+      - ./env/konga.env
+    depends_on:
+      - kong
+  web:
+    container_name: web
+    image: nginx:${VERSION_NGINX}
+    networks:
+      - kong-net
+    ports:
+      - "8080:80"
+networks:
+  kong-net:
+    name: kong-net
+    driver: bridge
