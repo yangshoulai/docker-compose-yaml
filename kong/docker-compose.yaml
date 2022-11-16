@@ -53,13 +53,6 @@ services:
       - ./env/konga.env
     depends_on:
       - kong
-  web:
-    container_name: web
-    image: nginx:${VERSION_NGINX}
-    networks:
-      - kong-net
-    ports:
-      - "8080:80"
 networks:
   kong-net:
     name: kong-net
