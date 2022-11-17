@@ -1,4 +1,5 @@
 version: '3.9'
+name: kong
 services:
   kong-database:
     container_name: kong-database

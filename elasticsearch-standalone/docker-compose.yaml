@@ -1,4 +1,5 @@
 version: "3.9"
+name: elasticsearch-standalone
 services:
   elasticsearch-standalone-setup:
     container_name: elasticsearch-standalone-setup
