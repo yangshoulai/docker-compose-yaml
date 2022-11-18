@@ -83,7 +83,7 @@ services:
     
   elasticsearch-standalone-kibana:
     container_name: elasticsearch-standalone-kibana
-    image: kibana:${VERSION_KIBANA}
+    image: kibana:${VERSION_ELASTICSEARCH}
     env_file:
       - ./env/kibana.env
     environment:
