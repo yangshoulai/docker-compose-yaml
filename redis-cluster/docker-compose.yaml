@@ -1,0 +1,202 @@
+version: "3.9"
+name: "redis-cluster"
+services:
+  redis-cluster-conf:
+    container_name: redis-cluster-conf
+    image: busybox:${VERSION_BUSYBOX}
+    command: >
+      sh -c '
+      for no in `seq 1 6`; do
+        mkdir -p /redis-conf/redis-node-0$${no};
+        echo "Generating redis.conf for redis-node-0$${no}";
+        echo -ne \
+        "port 6379\n"\
+        "bind 0.0.0.0\n"\
+        "appendonly yes\n"\
+        "cluster-enabled yes\n"\
+        "protected-mode no\n"\
+        "daemonize no\n"\
+        "cluster-announce-ip 172.19.0.1$${no}\n"\
+        "cluster-announce-port 6379\n"\
+        "cluster-announce-bus-port 16379\n"\
+        "cluster-config-file nodes.conf\n"\
+        > /redis-conf/redis-node-0$${no}/redis.conf;
+        done
+        echo "All Done!";
+      '
+    volumes:
+      - redis-cluster-node-conf:/redis-conf
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.19.0.2
+  
+  redis-cluster-node-01:
+    container_name: redis-cluster-node-01
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - redis-cluster-node-conf:/redis-conf
+      - redis-cluster-node-01-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.19.0.11
+    command: redis-server /redis-conf/redis-node-01/redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    depends_on:
+      - redis-cluster-conf
+  
+  redis-cluster-node-02:
+    container_name: redis-cluster-node-02
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - redis-cluster-node-conf:/redis-conf
+      - redis-cluster-node-02-data:/data
+    ports:
+      - "6380:6379"
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.19.0.12
+    command: redis-server /redis-conf/redis-node-02/redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    depends_on:
+      - redis-cluster-conf
+
+  redis-cluster-node-03:
+    container_name: redis-cluster-node-03
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - redis-cluster-node-conf:/redis-conf
+      - redis-cluster-node-03-data:/data
+    ports:
+      - "6381:6379"
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.19.0.13
+    command: redis-server /redis-conf/redis-node-03/redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    depends_on:
+      - redis-cluster-conf
+  
+  redis-cluster-node-04:
+    container_name: redis-cluster-node-04
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - redis-cluster-node-conf:/redis-conf
+      - redis-cluster-node-04-data:/data
+    ports:
+      - "6382:6379"
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.19.0.14
+    command: redis-server /redis-conf/redis-node-04/redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    depends_on:
+      - redis-cluster-conf
+
+  redis-cluster-node-05:
+    container_name: redis-cluster-node-05
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - redis-cluster-node-conf:/redis-conf
+      - redis-cluster-node-05-data:/data
+    ports:
+      - "6383:6379"
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.19.0.15
+    command: redis-server /redis-conf/redis-node-05/redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    depends_on:
+      - redis-cluster-conf
+
+  redis-cluster-node-06:
+    container_name: redis-cluster-node-06
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - redis-cluster-node-conf:/redis-conf
+      - redis-cluster-node-06-data:/data
+    ports:
+      - "6384:6379"
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.19.0.16
+    command: redis-server /redis-conf/redis-node-06/redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    depends_on:
+      - redis-cluster-conf
+
+  redis-cluster-setup:
+    container_name: redis-cluster-setup
+    image: redis:${VERSION_REDIS}
+    command: redis-cli --cluster create 172.19.0.11:6379 172.19.0.12:6379 172.19.0.13:6379 172.19.0.14:6379 172.19.0.15:6379 172.19.0.16:6379 --cluster-replicas 1 --cluster-yes
+    networks:
+      redis-cluster-net:
+        ipv4_address: 172.19.0.3
+    depends_on:
+      redis-cluster-node-01:
+        condition: service_healthy
+      redis-cluster-node-02:
+        condition: service_healthy
+      redis-cluster-node-03:
+        condition: service_healthy
+      redis-cluster-node-04:
+        condition: service_healthy
+      redis-cluster-node-05:
+        condition: service_healthy
+      redis-cluster-node-06:
+        condition: service_healthy
+
+volumes:
+  redis-cluster-node-conf:
+    name: redis-cluster-node-conf
+    driver: local
+  redis-cluster-node-01-data:
+    name: redis-cluster-node-01-data
+    driver: local
+  redis-cluster-node-02-data:
+    name: redis-cluster-node-02-data
+    driver: local
+  redis-cluster-node-03-data:
+    name: redis-cluster-node-03-data
+    driver: local
+  redis-cluster-node-04-data:
+    name: redis-cluster-node-04-data
+    driver: local
+  redis-cluster-node-05-data:
+    name: redis-cluster-node-05-data
+    driver: local
+  redis-cluster-node-06-data:
+    name: redis-cluster-node-06-data
+    driver: local
+
+networks:
+  redis-cluster-net:
+    name: redis-cluster-net
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
