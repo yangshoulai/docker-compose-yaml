@@ -1,27 +1,36 @@
 version: "3.9"
 name: "redis-cluster"
 services:
-  redis-cluster-conf:
-    container_name: redis-cluster-conf
-    image: busybox:${VERSION_BUSYBOX}
+  redis-cluster-setup:
+    container_name: redis-cluster-setup
+    image: redis:${VERSION_REDIS}
     command: >
-      sh -c '
-      for no in `seq 1 6`; do
-        mkdir -p /redis-conf/redis-node-0$${no};
-        echo "Generating redis.conf for redis-node-0$${no}";
-        echo -ne \
-        "port 6379\n"\
-        "bind 0.0.0.0\n"\
-        "appendonly yes\n"\
-        "cluster-enabled yes\n"\
-        "protected-mode no\n"\
-        "daemonize no\n"\
-        "cluster-announce-ip 172.19.0.1$${no}\n"\
-        "cluster-announce-port 6379\n"\
-        "cluster-announce-bus-port 16379\n"\
-        "cluster-config-file nodes.conf\n"\
-        > /redis-conf/redis-node-0$${no}/redis.conf;
+      bash -c '
+        for no in `seq 1 6`; do
+          mkdir -p /redis-conf/redis-node-0$${no};
+          echo "Generating redis.conf for redis-node-0$${no}";
+          echo -ne \
+          "port 6379\n"\
+          "bind 0.0.0.0\n"\
+          "appendonly yes\n"\
+          "cluster-enabled yes\n"\
+          "protected-mode no\n"\
+          "daemonize no\n"\
+          "cluster-announce-ip 172.19.0.1$${no}\n"\
+          "cluster-announce-port 6379\n"\
+          "cluster-announce-bus-port 16379\n"\
+          "cluster-config-file nodes.conf\n"\
+          > /redis-conf/redis-node-0$${no}/redis.conf;
         done
+        echo "Waiting for redis nodes availability";
+        sleep 10;
+        for no in `seq 1 6`; do
+          until redis-cli -h 172.19.0.1$${no} ping | grep -q "PONG"; do sleep 5; done;
+          echo "Node [redis-cluster-node-0$${no}] is available";
+        done
+        echo "Setup redis cluster";
+        redis-cli --cluster create 172.19.0.11:6379 172.19.0.12:6379 172.19.0.13:6379 172.19.0.14:6379 172.19.0.15:6379 172.19.0.16:6379 --cluster-replicas 1 --cluster-yes
+        until redis-cli -h 172.19.0.11 -c cluster info | grep -q "cluster_state:ok"; do sleep 5; done; 
         echo "All Done!";
       '
     volumes:
@@ -29,6 +38,11 @@ services:
     networks:
       redis-cluster-net:
         ipv4_address: 172.19.0.2
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /redis-conf/redis-node-06/redis.conf ]"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
   
   redis-cluster-node-01:
     container_name: redis-cluster-node-01
@@ -48,7 +62,8 @@ services:
       timeout: 5s
       retries: 120
     depends_on:
-      - redis-cluster-conf
+      redis-cluster-setup:
+        condition: service_healthy
   
   redis-cluster-node-02:
     container_name: redis-cluster-node-02
@@ -68,7 +83,8 @@ services:
       timeout: 5s
       retries: 120
     depends_on:
-      - redis-cluster-conf
+      redis-cluster-setup:
+        condition: service_healthy
 
   redis-cluster-node-03:
     container_name: redis-cluster-node-03
@@ -88,7 +104,8 @@ services:
       timeout: 5s
       retries: 120
     depends_on:
-      - redis-cluster-conf
+      redis-cluster-setup:
+        condition: service_healthy
   
   redis-cluster-node-04:
     container_name: redis-cluster-node-04
@@ -108,7 +125,8 @@ services:
       timeout: 5s
       retries: 120
     depends_on:
-      - redis-cluster-conf
+      redis-cluster-setup:
+        condition: service_healthy
 
   redis-cluster-node-05:
     container_name: redis-cluster-node-05
@@ -128,7 +146,8 @@ services:
       timeout: 5s
       retries: 120
     depends_on:
-      - redis-cluster-conf
+      redis-cluster-setup:
+        condition: service_healthy
 
   redis-cluster-node-06:
     container_name: redis-cluster-node-06
@@ -148,27 +167,7 @@ services:
       timeout: 5s
       retries: 120
     depends_on:
-      - redis-cluster-conf
-
-  redis-cluster-setup:
-    container_name: redis-cluster-setup
-    image: redis:${VERSION_REDIS}
-    command: redis-cli --cluster create 172.19.0.11:6379 172.19.0.12:6379 172.19.0.13:6379 172.19.0.14:6379 172.19.0.15:6379 172.19.0.16:6379 --cluster-replicas 1 --cluster-yes
-    networks:
-      redis-cluster-net:
-        ipv4_address: 172.19.0.3
-    depends_on:
-      redis-cluster-node-01:
-        condition: service_healthy
-      redis-cluster-node-02:
-        condition: service_healthy
-      redis-cluster-node-03:
-        condition: service_healthy
-      redis-cluster-node-04:
-        condition: service_healthy
-      redis-cluster-node-05:
-        condition: service_healthy
-      redis-cluster-node-06:
+      redis-cluster-setup:
         condition: service_healthy
 
 volumes:
