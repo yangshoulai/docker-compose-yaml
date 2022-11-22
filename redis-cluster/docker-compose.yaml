@@ -21,6 +21,7 @@ services:
           "cluster-announce-bus-port 16379\n"\
           "cluster-config-file nodes.conf\n"\
           > /redis-conf/redis-node-0$${no}/redis.conf;
+          awk "{sub(/ */, \"\"); print > \"/redis-conf/redis-node-0$${no}/redis.conf\"}" /redis-conf/redis-node-0$${no}/redis.conf;
         done
         echo "Waiting for redis nodes availability";
         sleep 10;
