@@ -1,0 +1,21 @@
+version: "3.9"
+name: "redis"
+services:
+  redis:
+    container_name: redis
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - ./redis-5_0.conf:/redis.conf
+      - redis:/data
+    ports:
+      - "6379:6379"
+    command: redis-server /redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+volumes:
+  redis:
+    name: redis
+    driver: local

@@ -1,0 +1,228 @@
+version: "3.9"
+name: elasticsearch-cluster
+services:
+  elasticsearch-cluster-setup:
+    container_name: elasticsearch-cluster-setup
+    image: elasticsearch:${VERSION_ELASTICSEARCH}
+    volumes:
+      - elasticsearch-cluster-certs:/usr/share/elasticsearch/config/certs
+    user: root
+    command: >
+      bash -c '
+        if [ x${ELASTIC_PASSWORD} == x ]; then
+          echo "Set the ELASTIC_PASSWORD environment variable in the .env file";
+          exit 1;
+        elif [ x${KIBANA_PASSWORD} == x ]; then
+          echo "Set the KIBANA_PASSWORD environment variable in the .env file";
+          exit 1;
+        fi;
+        if [ ! -f config/certs/ca.zip ]; then
+          echo "Creating CA";
+          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
+          unzip config/certs/ca.zip -d config/certs;
+        fi;
+        if [ ! -f config/certs/certs.zip ]; then
+          echo "Creating certs";
+          echo -ne \
+          "instances:\n"\
+          "  - name: elasticsearch-cluster-node-01\n"\
+          "    dns:\n"\
+          "      - elasticsearch-cluster-node-01\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          "  - name: elasticsearch-cluster-node-02\n"\
+          "    dns:\n"\
+          "      - elasticsearch-cluster-node-02\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          "  - name: elasticsearch-cluster-node-03\n"\
+          "    dns:\n"\
+          "      - elasticsearch-cluster-node-03\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          > config/certs/instances.yml;
+          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
+          unzip config/certs/certs.zip -d config/certs;
+        fi;
+        echo "Setting file permissions"
+        chown -R root:root config/certs;
+        find . -type d -exec chmod 750 \{\} \;;
+        find . -type f -exec chmod 640 \{\} \;;
+        echo "Waiting for Elasticsearch availability";
+        until curl -s --cacert config/certs/ca/ca.crt https://elasticsearch-cluster-node-01:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
+        echo "Setting kibana_system password";
+        until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:${ELASTIC_PASSWORD}" -H "Content-Type: application/json" https://elasticsearch-cluster-node-01:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 10; done;
+        echo "All done!";
+      '
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f config/certs/elasticsearch-cluster-node-01/elasticsearch-cluster-node-01.crt ]"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    
+  elasticsearch-cluster-node-01:
+    container_name: elasticsearch-cluster-node-01
+    image: elasticsearch:${VERSION_ELASTICSEARCH}
+    environment:
+      - node.name=elasticsearch-cluster-node-01
+      - cluster.name=${CLUSTER_NAME}
+      - cluster.initial_master_nodes=elasticsearch-cluster-node-01,elasticsearch-cluster-node-02,elasticsearch-cluster-node-03
+      - discovery.seed_hosts=elasticsearch-cluster-node-02,elasticsearch-cluster-node-03
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/elasticsearch-cluster-node-01/elasticsearch-cluster-node-01.key
+      - xpack.security.http.ssl.certificate=certs/elasticsearch-cluster-node-01/elasticsearch-cluster-node-01.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.http.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/elasticsearch-cluster-node-01/elasticsearch-cluster-node-01.key
+      - xpack.security.transport.ssl.certificate=certs/elasticsearch-cluster-node-01/elasticsearch-cluster-node-01.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.license.self_generated.type=${LICENSE}
+    mem_limit: ${MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    volumes:
+      - elasticsearch-cluster-certs:/usr/share/elasticsearch/config/certs
+      - elasticsearch-cluster-node-01:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    depends_on:
+      elasticsearch-cluster-setup:
+        condition: service_healthy
+    
+  elasticsearch-cluster-node-02:
+    container_name: elasticsearch-cluster-node-02
+    image: elasticsearch:${VERSION_ELASTICSEARCH}
+    environment:
+      - node.name=elasticsearch-cluster-node-02
+      - cluster.name=${CLUSTER_NAME}
+      - cluster.initial_master_nodes=elasticsearch-cluster-node-01,elasticsearch-cluster-node-02,elasticsearch-cluster-node-03
+      - discovery.seed_hosts=elasticsearch-cluster-node-01,elasticsearch-cluster-node-03
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/elasticsearch-cluster-node-02/elasticsearch-cluster-node-02.key
+      - xpack.security.http.ssl.certificate=certs/elasticsearch-cluster-node-02/elasticsearch-cluster-node-02.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.http.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/elasticsearch-cluster-node-02/elasticsearch-cluster-node-02.key
+      - xpack.security.transport.ssl.certificate=certs/elasticsearch-cluster-node-02/elasticsearch-cluster-node-02.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.license.self_generated.type=${LICENSE}
+    mem_limit: ${MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    volumes:
+      - elasticsearch-cluster-certs:/usr/share/elasticsearch/config/certs
+      - elasticsearch-cluster-node-02:/usr/share/elasticsearch/data
+    ports:
+      - "9201:9200"
+    depends_on:
+      - elasticsearch-cluster-node-01
+  
+  elasticsearch-cluster-node-03:
+    container_name: elasticsearch-cluster-node-03
+    image: elasticsearch:${VERSION_ELASTICSEARCH}
+    environment:
+      - node.name=elasticsearch-cluster-node-03
+      - cluster.name=${CLUSTER_NAME}
+      - cluster.initial_master_nodes=elasticsearch-cluster-node-01,elasticsearch-cluster-node-02,elasticsearch-cluster-node-03
+      - discovery.seed_hosts=elasticsearch-cluster-node-01,elasticsearch-cluster-node-02
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/elasticsearch-cluster-node-03/elasticsearch-cluster-node-03.key
+      - xpack.security.http.ssl.certificate=certs/elasticsearch-cluster-node-03/elasticsearch-cluster-node-03.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.http.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/elasticsearch-cluster-node-03/elasticsearch-cluster-node-03.key
+      - xpack.security.transport.ssl.certificate=certs/elasticsearch-cluster-node-03/elasticsearch-cluster-node-03.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.license.self_generated.type=${LICENSE}
+    mem_limit: ${MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    volumes:
+      - elasticsearch-cluster-certs:/usr/share/elasticsearch/config/certs
+      - elasticsearch-cluster-node-03:/usr/share/elasticsearch/data
+    ports:
+      - "9202:9200"
+    depends_on:
+      - elasticsearch-cluster-node-02
+    
+  elasticsearch-cluster-kibana:
+    container_name: elasticsearch-cluster-kibana
+    image: kibana:${VERSION_ELASTICSEARCH}
+    environment:
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+      - SERVERNAME=kibana
+      - ELASTICSEARCH_HOSTS=https://elasticsearch-cluster-node-01:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
+    mem_limit: ${MEM_LIMIT}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -I http://localhost:5601"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    volumes:
+      - elasticsearch-cluster-certs:/usr/share/kibana/config/certs
+      - elasticsearch-cluster-kibana:/usr/share/kibana/data
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch-cluster-node-01:
+        condition: service_healthy
+      elasticsearch-cluster-node-02:
+        condition: service_healthy
+      elasticsearch-cluster-node-03:
+        condition: service_healthy
+
+volumes:
+  elasticsearch-cluster-certs:
+    name: elasticsearch-cluster-certs
+    driver: local
+  elasticsearch-cluster-node-01:
+    name: elasticsearch-cluster-node-01
+    driver: local
+  elasticsearch-cluster-node-02:
+    name: elasticsearch-cluster-node-02
+    driver: local
+  elasticsearch-cluster-node-03:
+    name: elasticsearch-cluster-node-03
+    driver: local
+  elasticsearch-cluster-kibana:
+    name: elasticsearch-cluster-kibana
+    driver: local

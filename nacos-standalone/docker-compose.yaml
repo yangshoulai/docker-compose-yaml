@@ -1,0 +1,64 @@
+version: "3.9"
+name: nacos-standalone
+services:
+  nacos-mysql:
+    container_name: nacos-mysql
+    build:
+      context: .
+      #dockerfile: Dockerfile
+      dockerfile_inline: |
+        FROM mysql:${VERSION_MYSQL}
+        COPY schema.sql /docker-entrypoint-initdb.d/nacos-mysql.sql
+        RUN chown -R mysql:mysql /docker-entrypoint-initdb.d/nacos-mysql.sql
+        EXPOSE 3306
+        CMD ["mysqld", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    image: nacos/nacos-mysql:${VERSION_MYSQL}
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - nacos-mysql:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      nacos-standalone:
+        ipv4_address: 192.168.167.2
+  nacos-server:
+    container_name: nacos-server
+    image: nacos/nacos-server:${VERSION_NACOS}
+    environment:
+      - PREFER_HOST_MODE=hostname
+      - MODE=standalone
+      - SPRING_DATASOURCE_PLATFORM=mysql
+      - MYSQL_SERVICE_HOST=nacos-mysql
+      - MYSQL_SERVICE_DB_NAME=${MYSQL_DATABASE}
+      - MYSQL_SERVICE_PORT=3306
+      - MYSQL_SERVICE_USER=${MYSQL_USER}
+      - MYSQL_SERVICE_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_SERVICE_DB_PARAM=characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
+    volumes:
+      - nacos-server:/home/nacos/logs
+    depends_on:
+      nacos-mysql:
+        condition: service_healthy
+    restart: always
+    networks:
+      nacos-standalone:
+        ipv4_address: 192.168.167.3
+volumes:
+  nacos-mysql:
+    name: nacos-mysql
+  nacos-server:
+    name: nacos-server
+networks:
+  nacos-standalone:
+    name: nacos-standalone
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.167.0/24

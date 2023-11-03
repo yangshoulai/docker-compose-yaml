@@ -1,0 +1,117 @@
+version: "3.9"
+name: elk
+services:
+  zookeeper: 
+    container_name: zookeeper
+    image: zookeeper:${VERSION_ZOOKEEPER}
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+      - ZOO_LOG4J_PROP=INFO,ROLLINGFILE
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper-data:/data
+      - zookeeper-datalog:/datalog
+      - zookeeper-logs:/logs
+  
+  kafka:
+    container_name: kafka
+    image: bitnami/kafka:${VERSION_KAFKA}
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+    ports:
+      - "9092:9092"
+      - "9999:9999"
+    volumes:
+      - kafka:/bitnami/kafka
+    depends_on:
+      - zookeeper
+
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui:${VERSION_KAFKA_UI}
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+    ports:
+      - "8080:8080"
+    depends_on:
+      - kafka
+      - zookeeper
+
+  elasticsearch:
+    container_name: elasticsearch
+    image: elasticsearch:${VERSION_ELASTICSEARCH}
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    mem_limit: 1073741824
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -i http://localhost:9200 | grep -q '200 OK'"
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  kibana:
+    container_name: kibana
+    image: kibana:${VERSION_ELASTICSEARCH}
+    environment:
+      - SERVERNAME=kibana
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I http://localhost:5601 | grep -q 'HTTP/1.1 302 Found'"
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    volumes:
+      - kibana:/usr/share/kibana/data
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+          
+  logstash:
+    container_name: logstash
+    image: logstash:${VERSION_ELASTICSEARCH}
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+volumes:
+  kafka:
+    name: kafka
+  zookeeper-data:
+    name: zookeeper-data
+  zookeeper-datalog:
+    name: zookeeper-datalog
+  zookeeper-logs:
+    name: zookeeper-logs
+  elasticsearch:
+    name: elasticsearch
+  kibana:
+    name: kibana

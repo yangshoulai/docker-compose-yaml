@@ -1,0 +1,177 @@
+version: "3.9"
+name: "redis-cluster"
+services:
+  redis-cluster-setup:
+    container_name: redis-cluster-setup
+    image: redis:${VERSION_REDIS}
+    command: >
+      bash -c '
+        echo "Waiting for redis nodes availability";
+        sleep 10;
+        for no in `seq 1 6`; do
+          until redis-cli -h redis-cluster-node-0$${no} -p 6379 ping | grep -q "PONG"; do sleep 5; done;
+          echo "Node [redis-cluster-node-0$${no}] is available";
+        done
+        echo "Setup redis cluster";
+        redis-cli --cluster create 192.168.165.11:6379 192.168.165.12:6379 192.168.165.13:6379 192.168.165.14:6379 192.168.165.15:6379 192.168.165.16:6379 --cluster-replicas 1 --cluster-yes
+        until redis-cli -h 192.168.165.11 -p 6379 -c cluster info | grep -q "cluster_state:ok"; do sleep 5; done; 
+        echo "All Done!";
+      '
+    volumes:
+      - redis-cluster-setup:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -h 192.168.165.11 -p 6379 -c cluster info | grep -q \"cluster_state:ok\";"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    networks:
+      - redis-cluster
+    depends_on:
+      - redis-cluster-node-01
+      - redis-cluster-node-02 
+      - redis-cluster-node-03
+      - redis-cluster-node-04
+      - redis-cluster-node-05
+      - redis-cluster-node-06     
+  
+  redis-cluster-node-01:
+    container_name: redis-cluster-node-01
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - ./redis.conf:/redis.conf
+      - redis-cluster-node-01:/data
+    command: redis-server /redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    networks:
+      redis-cluster:
+        ipv4_address: 192.168.165.11
+  
+  redis-cluster-node-02:
+    container_name: redis-cluster-node-02
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - ./redis.conf:/redis.conf
+      - redis-cluster-node-02:/data
+    command: redis-server /redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    networks:
+      redis-cluster:
+        ipv4_address: 192.168.165.12
+
+  redis-cluster-node-03:
+    container_name: redis-cluster-node-03
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - ./redis.conf:/redis.conf
+      - redis-cluster-node-03:/data
+    command: redis-server /redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    networks:
+      redis-cluster:
+        ipv4_address: 192.168.165.13
+  
+  redis-cluster-node-04:
+    container_name: redis-cluster-node-04
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - ./redis.conf:/redis.conf
+      - redis-cluster-node-04:/data
+    command: redis-server /redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    networks:
+      redis-cluster:
+        ipv4_address: 192.168.165.14
+
+  redis-cluster-node-05:
+    container_name: redis-cluster-node-05
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - ./redis.conf:/redis.conf
+      - redis-cluster-node-05:/data
+    command: redis-server /redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    networks:
+      redis-cluster:
+        ipv4_address: 192.168.165.15
+
+  redis-cluster-node-06:
+    container_name: redis-cluster-node-06
+    image: redis:${VERSION_REDIS}
+    volumes:
+      - ./redis.conf:/redis.conf
+      - redis-cluster-node-06:/data
+    command: redis-server /redis.conf
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q 'PONG'"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+    networks:
+      redis-cluster:
+        ipv4_address: 192.168.165.16
+
+  redisinsight:
+    container_name: redisinsight
+    image: redislabs/redisinsight:1.14.0
+    ports:
+      - 8001:8001
+    volumes:
+      - redis-cluster-redisinsight:/db
+    depends_on:
+      - redis-cluster-setup
+    networks:
+      redis-cluster:
+        ipv4_address: 192.168.165.22
+
+volumes:
+  redis-cluster-setup:
+    name: redis-cluster-setup
+    driver: local
+  redis-cluster-redisinsight:
+    name: redis-cluster-redisinsight
+    driver: local
+  redis-cluster-node-01:
+    name: redis-cluster-node-01
+    driver: local
+  redis-cluster-node-02:
+    name: redis-cluster-node-02
+    driver: local
+  redis-cluster-node-03:
+    name: redis-cluster-node-03
+    driver: local
+  redis-cluster-node-04:
+    name: redis-cluster-node-04
+    driver: local
+  redis-cluster-node-05:
+    name: redis-cluster-node-05
+    driver: local
+  redis-cluster-node-06:
+    name: redis-cluster-node-06
+    driver: local
+  
+networks:
+  redis-cluster:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.165.0/24
