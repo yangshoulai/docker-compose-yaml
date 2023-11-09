@@ -1,0 +1,42 @@
+version: "3.9"
+name: "rocketmq"
+services:
+  namesrv:
+    container_name: rmqnamesrv
+    image: apache/rocketmq:${ROCKETMQ_VERSION}
+    volumes:
+      - rocketmq-namesrv:/home/rocketmq/logs
+    ports:
+      - "9876:9876"
+    command: sh mqnamesrv
+  broker:
+    container_name: rmqbroker
+    image: apache/rocketmq:${ROCKETMQ_VERSION}
+    user: root
+    ports:
+      - 10909:10909
+      - 10911:10911
+      - 10912:10912
+    volumes:
+      - rocketmq-broker-store:/root/store
+      - rocketmq-broker-logs:/root/logs
+    command: sh mqbroker -n rmqnamesrv:9876 --enable-proxy
+  dashboard:
+    container_name: rmqdashboard
+    image: apacherocketmq/rocketmq-dashboard:${ROCKETMQ_DASHBOARD_VERSION}
+    environment:
+      - JAVA_OPTS=-Drocketmq.namesrv.addr=rmqnamesrv:9876
+    volumes:
+      - rocketmq-dashboard:/tmp
+    ports:
+      - 8080:8080
+    
+volumes:
+  rocketmq-namesrv:
+    name: rocketmq-namesrv
+  rocketmq-broker-logs:
+    name: rocketmq-broker-logs
+  rocketmq-broker-store:
+    name: rocketmq-broker-store
+  rocketmq-dashboard:
+    name: rocketmq-dashboard
