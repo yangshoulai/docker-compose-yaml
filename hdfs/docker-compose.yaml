@@ -1,0 +1,27 @@
+version: "3.9"
+name: hdfs
+services:
+  namenode:
+    container_name: namenode
+    image: gradiant/hdfs-namenode
+    ports:
+      - "8020:8020"
+    networks:
+      hdfs:
+        ipv4_address: 172.21.80.1   
+  datanode:
+    container_name: datanode
+    image: gradiant/hdfs-datanode
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+    networks:
+      hdfs:
+        ipv4_address: 172.21.80.2  
+
+networks:
+  hdfs:
+    name: hdfs
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.80.0/16

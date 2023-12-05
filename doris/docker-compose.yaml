@@ -1,0 +1,74 @@
+version: "3.9"
+name: doris
+services:
+  doris-fe:
+    container_name: doris-fe
+    image: apache/doris:${VERSION_FE}
+    volumes:
+      - doris-fe-meta:/opt/apache-doris/fe/doris-meta
+      - doris-fe-log:/opt/apache-doris/fe/log
+    ports:
+      - "8030:8030"
+      - "9030:9030"
+    environment:
+      - FE_ID=1
+      - FE_SERVERS=fe1:172.20.80.1:9010
+    networks:
+      doris:
+        ipv4_address: 172.20.80.1
+
+  doris-be:
+    container_name: doris-be
+    image: apache/doris:${VERSION_BE}
+    volumes:
+      - doris-be-storage:/opt/apache-doris/be/storage
+      - doris-be-log:/opt/apache-doris/be/log
+    ports:
+      - "8040:8040"
+      - "9000:9000"
+      - "9050:9050"
+    environment:
+      - BE_ADDR=172.20.80.2:9050
+      - FE_SERVERS=fe1:172.20.80.1:9010
+    depends_on:
+      - doris-fe
+    networks:
+      doris:
+        ipv4_address: 172.20.80.2
+
+  namenode:
+    container_name: namenode
+    image: gradiant/hdfs-namenode
+    ports:
+      - "8020:8020"
+    networks:
+      doris:
+        ipv4_address: 172.20.80.3   
+        
+  datanode:
+    container_name: datanode
+    image: gradiant/hdfs-datanode
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+    networks:
+      doris:
+        ipv4_address: 172.20.80.4  
+
+networks:
+  doris:
+    name: doris
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.80.0/16
+
+
+volumes:
+  doris-fe-meta:
+    name: doris-fe-meta
+  doris-fe-log:
+    name: doris-fe-log
+  doris-be-storage:
+    name: doris-be-storage
+  doris-be-log:
+    name: doris-be-log
