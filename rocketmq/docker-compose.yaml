@@ -18,6 +18,7 @@ services:
       - 10911:10911
       - 10912:10912
     volumes:
+      - ./broker.conf:/home/rocketmq/rocketmq-${ROCKETMQ_VERSION}/conf/broker.conf
       - rocketmq-broker-store:/root/store
       - rocketmq-broker-logs:/root/logs
     command: sh mqbroker -n rmqnamesrv:9876 --enable-proxy
