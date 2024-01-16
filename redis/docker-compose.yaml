@@ -5,7 +5,7 @@ services:
     container_name: redis
     image: redis:${VERSION_REDIS}
     volumes:
-      - ./redis-5_0.conf:/redis.conf
+      - ./redis-7_2.conf:/redis.conf
       - redis:/data
     ports:
       - "6379:6379"

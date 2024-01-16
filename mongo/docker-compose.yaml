@@ -1,0 +1,16 @@
+version: "3.9"
+name: "mongo"
+services:
+  mongo:
+    container_name: mongo
+    image: mongo:${MONGO_VERSION}
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongo
+      - MONGO_INITDB_ROOT_PASSWORD=mongo
+    volumes:
+      - mongo:/data/db
+    ports:
+      - "27017:27017"
+volumes:
+  mongo:
+    name: mongo

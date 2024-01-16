@@ -1,5 +1,9 @@
 volumes/
 
 datax/
+crawler/
+crawler_docker-compose/
+crawler_docker-compose.zip
+mysql-master-slave/
 
 .DS_Store
