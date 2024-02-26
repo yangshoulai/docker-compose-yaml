@@ -4,6 +4,8 @@ services:
   nacos-cluster-node-01:
     container_name: nacos-cluster-node-01
     image: nacos/nacos-server:${VERSION_NACOS}
+    environment:
+      - NACOS_SERVERS=172.16.0.12:8848 172.16.0.13:8848
     env_file:
       - ./nacos.env
     volumes:
@@ -11,6 +13,9 @@ services:
     networks:
       nacos-cluster:
         ipv4_address: 172.16.0.11
+    ports:
+      - "8848:8848"
+      - "9848:9848"
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:8848/nacos"]
       interval: 1s
@@ -23,6 +28,8 @@ services:
   nacos-cluster-node-02:
     container_name: nacos-cluster-node-02
     image: nacos/nacos-server:${VERSION_NACOS}
+    environment:
+      - NACOS_SERVERS=172.16.0.11:8848 172.16.0.13:8848
     env_file:
       - ./nacos.env
     volumes:
@@ -30,6 +37,9 @@ services:
     networks:
       nacos-cluster:
         ipv4_address: 172.16.0.12
+    ports:
+      - "8849:8848"
+      - "9849:9848"
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:8848/nacos"]
       interval: 1s
@@ -42,6 +52,8 @@ services:
   nacos-cluster-node-03:
     container_name: nacos-cluster-node-03
     image: nacos/nacos-server:${VERSION_NACOS}
+    environment:
+      - NACOS_SERVERS=172.16.0.11:8848 172.16.0.12:8848
     env_file:
       - ./nacos.env
     volumes:
@@ -49,6 +61,9 @@ services:
     networks:
       nacos-cluster:
         ipv4_address: 172.16.0.13
+    ports:
+      - "8850:8848"
+      - "9850:9848"
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:8848/nacos"]
       interval: 1s
@@ -77,6 +92,22 @@ services:
       interval: 5s
       timeout: 10s
       retries: 10
+
+  nacos-cluster-nginx:
+    container_name: nacos-cluster-nginx
+    image: nginx:1.22.1
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      nacos-cluster:
+        ipv4_address: 172.16.0.14
+    ports:
+      - 80:80
+    depends_on:
+      - nacos-cluster-node-01
+      - nacos-cluster-node-02
+      - nacos-cluster-node-03
 
 volumes:
   nacos-cluster-mysql:
