@@ -1,0 +1,169 @@
+name: "rocketmq-cluster"
+services:
+  rmqnamesrv:
+    container_name: rmqnamesrv
+    image: apache/rocketmq:${ROCKETMQ_VERSION}
+    environment:
+      - JAVA_OPT_EXT=-server -Xmx1g -Xms1g -Xmn128m
+    volumes:
+      - ./volumes/rmqnamesrv/logs:/home/rocketmq/logs
+    ports:
+      - "9876:9876"
+    networks:
+      - development-network
+    command: sh mqnamesrv
+
+  rmqcontroller:
+    image: apache/rocketmq:${ROCKETMQ_VERSION}
+    container_name: rmqcontroller
+    environment:
+      - NAMESRV_ADDR=rmqnamesrv:9876
+      - JAVA_OPT_EXT=-server -Xmx1g -Xms1g -Xmn128m
+    networks:
+      - development-network
+    ports:
+      - "9877:9877"
+    volumes:
+      - ./rmqcontroller.conf:/home/rocketmq/rocketmq-${ROCKETMQ_VERSION}/conf/controller.conf
+      - ./volumes/rmqcontroller/logs:/opt/logs
+      - ./volumes/rmqcontroller/store:/opt/store
+      - ./volumes/rmqcontroller/DledgerController:/home/rocketmq/DledgerController
+    depends_on:
+      - rmqnamesrv
+      - rmqbroker1
+      - rmqbroker2
+      - rmqbroker3
+      - rmqbroker4
+    command: sh mqcontroller -c ../conf/controller.conf
+ 
+  rmqbroker1:
+    container_name: rmqbroker1
+    image: apache/rocketmq:${ROCKETMQ_VERSION}
+    ports:
+      - 10909:10909
+      - 10911:10911
+      - 10912:10912
+    networks:
+      - development-network
+    environment:
+      - NAMESRV_ADDR=rmqnamesrv:9876 
+      - ROCKETMQ_CONTROLLER=rmqcontroller:9877
+      - JAVA_OPT_EXT=-server -Xmx1g -Xms1g -Xmn128m
+    volumes:
+      - ./rmqbroker1.conf:/home/rocketmq/rocketmq-${ROCKETMQ_VERSION}/conf/broker.conf
+      - ./volumes/broker/rmqbroker1/store:/root/store
+      - ./volumes/broker/rmqbroker1/logs:/root/logs
+    depends_on:
+      - rmqnamesrv
+    command: sh mqbroker -c ../conf/broker.conf
+
+  rmqbroker2:
+    container_name: rmqbroker2
+    image: apache/rocketmq:${ROCKETMQ_VERSION}
+    ports:
+      - 10913:10909
+      - 10914:10911
+      - 10915:10912
+    networks:
+      - development-network
+    environment:
+      - NAMESRV_ADDR=rmqnamesrv:9876 
+      - ROCKETMQ_CONTROLLER=rmqcontroller:9877
+      - JAVA_OPT_EXT=-server -Xmx1g -Xms1g -Xmn128m
+    volumes:
+      - ./rmqbroker2.conf:/home/rocketmq/rocketmq-${ROCKETMQ_VERSION}/conf/broker.conf
+      - ./volumes/broker/rmqbroker2/store:/root/store
+      - ./volumes/broker/rmqbroker2/logs:/root/logs
+    depends_on:
+      - rmqnamesrv
+    command: sh mqbroker -c ../conf/broker.conf
+
+
+  rmqbroker3:
+    container_name: rmqbroker3
+    image: apache/rocketmq:${ROCKETMQ_VERSION}
+    ports:
+      - 10916:10909
+      - 10917:10911
+      - 10918:10912
+    networks:
+      - development-network
+    environment:
+      - NAMESRV_ADDR=rmqnamesrv:9876 
+      - ROCKETMQ_CONTROLLER=rmqcontroller:9877
+      - JAVA_OPT_EXT=-server -Xmx1g -Xms1g -Xmn128m
+    volumes:
+      - ./rmqbroker3.conf:/home/rocketmq/rocketmq-${ROCKETMQ_VERSION}/conf/broker.conf
+      - ./volumes/broker/rmqbroker3/store:/root/store
+      - ./volumes/broker/rmqbroker3/logs:/root/logs
+    depends_on:
+      - rmqnamesrv
+    command: sh mqbroker -c ../conf/broker.conf 
+
+
+  rmqbroker4:
+    container_name: rmqbroker4
+    image: apache/rocketmq:${ROCKETMQ_VERSION}
+    ports:
+      - 10919:10909
+      - 10920:10911
+      - 10921:10912
+    networks:
+      - development-network
+    environment:
+      - NAMESRV_ADDR=rmqnamesrv:9876 
+      - ROCKETMQ_CONTROLLER=rmqcontroller:9877
+      - JAVA_OPT_EXT=-server -Xmx1g -Xms1g -Xmn128m
+    volumes:
+      - ./rmqbroker4.conf:/home/rocketmq/rocketmq-${ROCKETMQ_VERSION}/conf/broker.conf
+      - ./volumes/broker/rmqbroker4/store:/root/store
+      - ./volumes/broker/rmqbroker4/logs:/root/logs
+    depends_on:
+      - rmqnamesrv
+    command: sh mqbroker -c ../conf/broker.conf 
+
+
+  rmqproxy:
+    image: apache/rocketmq:${ROCKETMQ_VERSION}
+    container_name: rmqproxy
+    networks:
+      - development-network
+    ports:
+      - 8080:8080
+      - 8081:8081
+    restart: always
+    depends_on:
+      - rmqbroker1
+      - rmqbroker2
+      - rmqbroker3
+      - rmqbroker4
+      - rmqnamesrv
+    environment:
+      - NAMESRV_ADDR=rmqnamesrv:9876
+      - JAVA_OPT_EXT=-server -Xmx1g -Xms1g -Xmn128m
+    command: sh mqproxy  
+
+  
+  dashboard:
+    container_name: rmqdashboard
+    image: apacherocketmq/rocketmq-dashboard:${ROCKETMQ_DASHBOARD_VERSION}
+    environment:
+      - JAVA_OPTS=-Drocketmq.namesrv.addr=rmqnamesrv:9876
+    volumes:
+      - ./volumes/dashboard:/tmp
+    ports:
+      - 9090:8080
+    networks:
+      - development-network
+    depends_on:
+      - rmqbroker1
+      - rmqbroker2
+      - rmqbroker3
+      - rmqbroker4
+      - rmqnamesrv
+      - rmqproxy
+    
+
+networks:
+  development-network:
+    external: true

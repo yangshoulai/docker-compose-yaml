@@ -32,6 +32,9 @@ services:
     container_name: nacos-server
     image: nacos/nacos-server:${VERSION_NACOS}
     environment:
+      - NACOS_AUTH_ENABLE=true
+      - nacos.core.auth.enable.userAgentAuthWhite=true
+      - NACOS_AUTH_TOKEN=dmNCeGpTeTBQYVk2VGVObktWbU00d25vZG9HbDdXakM=
       - PREFER_HOST_MODE=hostname
       - MODE=standalone
       - SPRING_DATASOURCE_PLATFORM=mysql
@@ -43,6 +46,8 @@ services:
       - MYSQL_SERVICE_DB_PARAM=characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
     volumes:
       - nacos-server:/home/nacos/logs
+    ports:
+      - "8848:8848"
     depends_on:
       nacos-mysql:
         condition: service_healthy

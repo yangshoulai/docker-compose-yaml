@@ -1,0 +1,67 @@
+version: "3.9"
+name: "prometheus"
+services:
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:${VERSION_PROMETHENUS}
+    platform: ${PLATFORM}
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus:/prometheus
+    ports:
+      - "9090:9090"
+  grafana:
+    container_name: grafana
+    image: grafana/grafana-enterprise:${VERSION_GRAFANA}
+    platform: ${PLATFORM}
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - grafana:/var/lib/grafana
+    ports:
+      - "3000:3000"
+  redis:
+    container_name: redis
+    image: redis:${VERSION_REDIS}
+    platform: ${PLATFORM}
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./redis.conf:/redis.conf
+      - redis:/data
+    ports:
+      - "6379:6379"
+    command: redis-server /redis.conf
+  redis-exporter:
+    container_name: redis-exporter
+    image: oliver006/redis_exporter:${VERSION_REDIS_EXPORTER}
+    platform: ${PLATFORM}
+    environment:
+      - TZ=Asia/Shanghai
+    ports:
+      - "9121:9121"
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - /usr/share/zoneinfo:/usr/share/zoneinfo
+    command: ["--redis.addr", "redis://redis:6379", "--redis.password", "123456", "--check-keys", "db1=huhuhu"]
+
+  rocketmq-exporter:
+    container_name: rocketmq-exporter
+    image: apache/rocketmq-exporter:${VERSION_ROCKETMQ_EXPORTER}
+    platform: ${PLATFORM}
+    environment:
+      - TZ=Asia/Shanghai
+    command: ["--rocketmq.config.namesrvAddr=132.252.145.108:9876;132.252.145.114:9876"]
+
+volumes:
+  prometheus:
+    name: prometheus
+    driver: local
+  grafana:
+    name: grafana
+    driver: local
+  redis:
+    name: redis
+    driver: local
+
+    

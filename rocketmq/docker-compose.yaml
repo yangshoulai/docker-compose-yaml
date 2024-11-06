@@ -26,7 +26,7 @@ services:
     container_name: rmqdashboard
     image: apacherocketmq/rocketmq-dashboard:${ROCKETMQ_DASHBOARD_VERSION}
     environment:
-      - JAVA_OPTS=-Drocketmq.namesrv.addr=rmqnamesrv:9876
+      - JAVA_OPTS=-Drocketmq.namesrv.addr=132.252.145.108:9876;132.252.145.114:9876:9876
     volumes:
       - rocketmq-dashboard:/tmp
     ports:
