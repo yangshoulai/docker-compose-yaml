@@ -1,0 +1,33 @@
+services:
+  jobmanager:
+    image: apache/flink:${VERSION_FLINK}
+    command: "jobmanager.sh start-foreground"
+    networks:
+      - development-network
+    ports:
+      - 8081:8081
+    volumes:
+      - ./volumes/jobmanager/conf:/opt/flink/conf
+      - ./volumes/jobmanager/tmp:/tmp/
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+
+
+  taskmanager:
+    image: apache/flink:${VERSION_FLINK}
+    depends_on:
+      - jobmanager
+    command: "taskmanager.sh start-foreground"
+    networks:
+      - development-network
+    volumes:
+      - ./volumes/taskmanager/conf:/opt/flink/conf
+      - ./volumes/taskmanager/tmp:/tmp/
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+
+
+networks:
+  development-network:
+    external: true
+        
