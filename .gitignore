@@ -1,6 +1,5 @@
 .idea
-
-volumes/
+volumes
 
 datax/
 crawler/
@@ -9,6 +8,3 @@ crawler_docker-compose.zip
 mysql-master-slave/
 
 .DS_Store
-!/flink/volumes/jobmanager/conf/flink-conf.yaml
-
-!/flink/volumes/taskmanager/conf/flink-conf.yaml

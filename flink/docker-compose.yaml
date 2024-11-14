@@ -7,7 +7,7 @@ services:
     ports:
       - 8081:8081
     volumes:
-      - ./volumes/jobmanager/conf:/opt/flink/conf
+      - ./jobmanager.conf:/opt/flink/conf
       - ./volumes/jobmanager/tmp:/tmp/
     environment:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
@@ -21,7 +21,7 @@ services:
     networks:
       - development-network
     volumes:
-      - ./volumes/taskmanager/conf:/opt/flink/conf
+      - ./taskmanager.conf:/opt/flink/conf
       - ./volumes/taskmanager/tmp:/tmp/
     environment:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
